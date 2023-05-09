@@ -17,12 +17,9 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	dutil "github.com/open-lambda/open-lambda/ol/sandbox/dockerutil"
-
-	"github.com/open-lambda/open-lambda/ol/bench"
-	"github.com/open-lambda/open-lambda/ol/boss"
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/server"
+	dutil "open-lambda/common/dockerutil"
+	
+	"open-lambda/common"
 
 	"github.com/urfave/cli"	
 )
@@ -244,7 +241,7 @@ func worker(ctx *cli.Context) error {
 		return fmt.Errorf("worker still not reachable after 30 seconds :: %s", pingErr)
 	}
 
-	if err := server.Main(); err != nil {
+	if err := common.Main(); err != nil {
 		return err
 	}
 
@@ -252,15 +249,15 @@ func worker(ctx *cli.Context) error {
 }
 
 func newBossConf() error {
-	if err := boss.LoadDefaults(); err != nil {
+	if err := LoadDefaults(); err != nil {
 		return err
 	}
 
-	if err := boss.SaveConf("boss.json"); err != nil {
+	if err := SaveConf("json"); err != nil {
 		return err
 	}
 
-	fmt.Printf("populated boss.json with default settings\n")
+	fmt.Printf("populated json with default settings\n")
 	return nil
 }
 
@@ -271,11 +268,11 @@ func newBoss(ctx *cli.Context) error {
 
 // runBoss corresponses to the "boss" command of the admin tool.
 func runBoss(ctx *cli.Context) error {
-	if _, err := os.Stat("boss.json"); os.IsNotExist(err) {
+	if _, err := os.Stat("json"); os.IsNotExist(err) {
 		newBossConf()
 	}
 
-	if err := boss.LoadConf("boss.json"); err != nil {
+	if err := LoadConf("json"); err != nil {
 		return err
 	}
 
@@ -428,7 +425,7 @@ func bossStart(ctx *cli.Context) error {
 	// If detach is specified, we start another ol-process with the worker argument
 	if detach {
 		// stdout+stderr both go to log
-		logPath := "boss.out"
+		logPath := "out"
 		// creates a worker.out file
 		f, err := os.Create(logPath)
 		if err != nil {
@@ -464,11 +461,11 @@ func bossStart(ctx *cli.Context) error {
 			died <- err
 		}()
 
-		fmt.Printf("Starting boss: pid=%d, port=%s, log=%s\n", proc.Pid, boss.Conf.Boss_port, logPath)
+		fmt.Printf("Starting boss: pid=%d, port=%s, log=%s\n", proc.Pid, Conf.Boss_port, logPath)
 		return nil // TODO: ping status to make sure it is actually running?
     }
 
-	if err := boss.BossMain(); err != nil {
+	if err := BossMain(); err != nil {
 		return err
 	}
 
@@ -521,12 +518,12 @@ func kill(ctx *cli.Context) error {
 }
 
 func gcpTest(ctx *cli.Context) error {
-	boss.GCPBossTest()
+	GCPBossTest()
 	return nil
 }
 
 func azureTest(ctx *cli.Context) error {
-	boss.AzureMain("default contents")
+	AzureMain("default contents")
 	return nil
 }
 
@@ -638,7 +635,7 @@ OPTIONS:
 			Name:        "worker",
 			Usage:       "Start an OL worker process (automatically calls 'new' and uses default if that wasn't already done)",
 			UsageText:   "ol worker [--path=NAME] [--detach]",
-			Description: "Start a lambda server.",
+			Description: "Start a lambda common.",
 			Flags: []cli.Flag{
 				pathFlag,
 				cli.StringFlag{
@@ -654,7 +651,7 @@ OPTIONS:
 		},
 		cli.Command{
 			Name:        "new-boss",
-			Usage:       "Create an OL Boss config (boss.json)",
+			Usage:       "Create an OL Boss config (json)",
 			UsageText:   "ol new-boss [--path=PATH] [--detach]",
 			Description: "Create config for new boss",
 			Action:      newBoss,
@@ -663,7 +660,7 @@ OPTIONS:
 			Name:        "boss",
 			Usage:       "Start an OL Boss process",
 			UsageText:   "ol boss [--path=PATH] [--detach]",
-			Description: "Start a boss server.",
+			Description: "Start a boss common.",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "detach, d",
@@ -712,7 +709,7 @@ OPTIONS:
 			Name: "bench",
 			Usage: "Run benchmarks against an OL worker.",
 			UsageText: "ol bench <cmd>",
-			Subcommands: bench.BenchCommands(),
+			Subcommands: common.BenchCommands(),
 		},
 		cli.Command{
 			Name: "pprof",

@@ -1,4 +1,4 @@
-package server
+package common
 
 import (
 	"encoding/json"
@@ -11,9 +11,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/sandbox"
 )
 
 type Handler func(http.ResponseWriter, []string, map[string]any) error
@@ -23,16 +20,16 @@ var nextScratchId int64 = 1000
 // SOCKServer is a worker server that listens to run lambda requests and forward
 // these requests to its sandboxes.
 type SOCKServer struct {
-	sbPool    *sandbox.SOCKPool
+	sbPool    *SOCKPool
 	sandboxes sync.Map
 }
 
-func (server *SOCKServer) GetSandbox(id string) sandbox.Sandbox {
+func (server *SOCKServer) GetSandbox(id string) Sandbox {
 	val, ok := server.sandboxes.Load(id)
 	if !ok {
 		return nil
 	}
-	return val.(sandbox.Sandbox)
+	return val.(Sandbox)
 }
 
 func (server *SOCKServer) Create(w http.ResponseWriter, rsrc []string, args map[string]any) error {
@@ -46,7 +43,7 @@ func (server *SOCKServer) Create(w http.ResponseWriter, rsrc []string, args map[
 	// create args
 	codeDir := args["code"].(string)
 
-	var parent sandbox.Sandbox = nil
+	var parent Sandbox = nil
 	if p, ok := args["parent"]; ok && p != "" {
 		parent = server.GetSandbox(p.(string))
 		if parent == nil {
@@ -63,18 +60,18 @@ func (server *SOCKServer) Create(w http.ResponseWriter, rsrc []string, args map[
 
 	// spin it up
 	scratchID := fmt.Sprintf("dir-%d", atomic.AddInt64(&nextScratchId, 1))
-	scratchDir := filepath.Join(common.Conf.Worker_dir, "scratch", scratchID)
+	scratchDir := filepath.Join(Conf.Worker_dir, "scratch", scratchID)
 	if err := os.MkdirAll(scratchDir, 0777); err != nil {
 		panic(err)
 	}
 
-	rtType := common.RT_PYTHON
+	rtType := RT_PYTHON
 
 	if rtName, ok := args["runtime"]; ok {
 		if rtName == "python" {
-			rtType = common.RT_PYTHON
+			rtType = RT_PYTHON
 		} else if rtName == "native" {
-			rtType = common.RT_NATIVE
+			rtType = RT_NATIVE
 		} else {
 			return fmt.Errorf("No such runtime `%s`", rtName)
 		}
@@ -84,7 +81,7 @@ func (server *SOCKServer) Create(w http.ResponseWriter, rsrc []string, args map[
 		return fmt.Errorf("Parent and child have different runtimes")
 	}
 
-	meta := &sandbox.SandboxMeta{
+	meta := &SandboxMeta{
 		Installs: packages,
 	}
 
@@ -191,7 +188,7 @@ func (server *SOCKServer) Handle(w http.ResponseWriter, r *http.Request) {
 
 func (server *SOCKServer) cleanup() {
 	server.sandboxes.Range(func(key, val any) bool {
-		val.(sandbox.Sandbox).Destroy("SOCKServer cleanup")
+		val.(Sandbox).Destroy("SOCKServer cleanup")
 		return true
 	})
 	server.sbPool.Cleanup()
@@ -201,13 +198,13 @@ func (server *SOCKServer) cleanup() {
 func NewSOCKServer() (*SOCKServer, error) {
 	log.Printf("Start SOCK Server")
 
-	mem := sandbox.NewMemPool("sandboxes", common.Conf.Mem_pool_mb)
-	sbPool, err := sandbox.NewSOCKPool("sandboxes", mem)
+	mem := NewMemPool("sandboxes", Conf.Mem_pool_mb)
+	sbPool, err := NewSOCKPool("sandboxes", mem)
 	if err != nil {
 		return nil, err
 	}
 	// some of the SOCK tests depend on there not being an evictor
-	// sandbox.NewSOCKEvictor(sbPool)
+	// NewSOCKEvictor(sbPool)
 
 	server := &SOCKServer{
 		sbPool: sbPool,

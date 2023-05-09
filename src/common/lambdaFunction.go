@@ -1,4 +1,4 @@
-package lambda
+package common
 
 import (
 	"bufio"
@@ -10,9 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/sandbox"
 )
 
 // LambdaFunc represents a single lambda function (the code)
@@ -20,12 +17,12 @@ type LambdaFunc struct {
 	lmgr *LambdaMgr
 	name string
 
-	rtType common.RuntimeType
+	rtType RuntimeType
 
 	// lambda code
 	lastPull *time.Time
 	codeDir  string
-	meta     *sandbox.SandboxMeta
+	meta     *SandboxMeta
 
 	// lambda execution
 	funcChan  chan *Invocation // server to func
@@ -39,7 +36,7 @@ type LambdaFunc struct {
 }
 
 func (f *LambdaFunc) Invoke(w http.ResponseWriter, r *http.Request) {
-	t := common.T0("LambdaFunc.Invoke")
+	t := T0("LambdaFunc.Invoke")
 	defer t.T1()
 
 	done := make(chan bool)
@@ -77,7 +74,7 @@ func (f *LambdaFunc) printf(format string, args ...any) {
 // we will install them, for example, to
 // /packages/pkg==1.0.0/files/pkg and /packages/pkg==2.0.0/files/pkg.
 // Each .../files path a handler needs is added to its sys.path.
-func parseMeta(codeDir string) (meta *sandbox.SandboxMeta, err error) {
+func parseMeta(codeDir string) (meta *SandboxMeta, err error) {
 	installs := make([]string, 0)
 	imports := make([]string, 0)
 
@@ -113,7 +110,7 @@ func parseMeta(codeDir string) (meta *sandbox.SandboxMeta, err error) {
 		installs[i] = normalizePkg(pkg)
 	}
 
-	return &sandbox.SandboxMeta{
+	return &SandboxMeta{
 		Installs: installs,
 		Imports:  imports,
 	}, nil
@@ -125,7 +122,7 @@ func parseMeta(codeDir string) (meta *sandbox.SandboxMeta, err error) {
 func (f *LambdaFunc) pullHandlerIfStale() (err error) {
 	// check if there is newer code, download it if necessary
 	now := time.Now()
-	cacheNs := int64(common.Conf.Registry_cache_ms) * 1000000
+	cacheNs := int64(Conf.Registry_cache_ms) * 1000000
 
 	// should we check for new code?
 	if f.lastPull != nil && int64(now.Sub(*f.lastPull)) < cacheNs {
@@ -150,7 +147,7 @@ func (f *LambdaFunc) pullHandlerIfStale() (err error) {
 				log.Printf("could not cleanup %s after failed pull\n", codeDir)
 			}
 
-			if rtType == common.RT_PYTHON {
+			if rtType == RT_PYTHON {
 				// we dirty this dir (e.g., by setting up
 				// symlinks to packages, so we want the
 				// HandlerPuller to give us a new one next
@@ -160,7 +157,7 @@ func (f *LambdaFunc) pullHandlerIfStale() (err error) {
 		}
 	}()
 
-	if rtType == common.RT_PYTHON {
+	if rtType == RT_PYTHON {
 		// inspect new code for dependencies; if we can install
 		// everything necessary, start using new code
 		meta, err := parseMeta(codeDir)
@@ -174,7 +171,7 @@ func (f *LambdaFunc) pullHandlerIfStale() (err error) {
 		}
 		f.lmgr.DepTracer.TraceFunction(codeDir, meta.Installs)
 		f.meta = meta
-	} else if rtType == common.RT_NATIVE {
+	} else if rtType == RT_NATIVE {
 		log.Printf("Got native function")
 	}
 
@@ -202,7 +199,7 @@ func (f *LambdaFunc) pullHandlerIfStale() (err error) {
 // If either LambdaFunc.funcChan or LambdaFunc.instChan is full, we
 // respond to the client with a backoff message: StatusTooManyRequests
 func (f *LambdaFunc) Task() {
-	f.printf("debug: LambdaFunc.Task() runs on goroutine %d", common.GetGoroutineID())
+	f.printf("debug: LambdaFunc.Task() runs on goroutine %d", GetGoroutineID())
 
 	// we want to perform various cleanup actions, such as killing
 	// instances and deleting old code.  We want to do these
@@ -240,7 +237,7 @@ func (f *LambdaFunc) Task() {
 
 	// stats for autoscaling
 	outstandingReqs := 0
-	execMs := common.NewRollingAvg(10)
+	execMs := NewRollingAvg(10)
 	var lastScaling *time.Time = nil
 	timeout := time.NewTimer(0)
 

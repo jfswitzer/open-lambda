@@ -1,4 +1,4 @@
-package sandbox
+package common
 
 // this layer can wrap any sandbox, and provides several (mostly) safety features:
 // 1. it prevents concurrent calls to Sandbox functions that modify the Sandbox
@@ -13,8 +13,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 type safeSandbox struct {
@@ -77,7 +75,7 @@ func (sb *safeSandbox) destroyOnErr(funcName string, origErr error) {
 
 func (sb *safeSandbox) Destroy(reason string) {
 	sb.printf("Destroy()")
-	t := common.T0("Destroy()")
+	t := T0("Destroy()")
 	defer t.T1()
 	sb.Mutex.Lock()
 	defer sb.Mutex.Unlock()
@@ -99,7 +97,7 @@ func (sb *safeSandbox) Destroy(reason string) {
 
 func (sb *safeSandbox) DestroyIfPaused(reason string) {
 	sb.printf("DestroyIfPaused()")
-	t := common.T0("DestroyIfPaused()")
+	t := T0("DestroyIfPaused()")
 	defer t.T1()
 	sb.Mutex.Lock()
 	defer sb.Mutex.Unlock()
@@ -119,7 +117,7 @@ func (sb *safeSandbox) DestroyIfPaused(reason string) {
 
 func (sb *safeSandbox) Pause() (err error) {
 	sb.printf("Pause()")
-	t := common.T0("Pause()")
+	t := T0("Pause()")
 	defer t.T1()
 	sb.Mutex.Lock()
 	defer sb.Mutex.Unlock()
@@ -142,7 +140,7 @@ func (sb *safeSandbox) Pause() (err error) {
 
 func (sb *safeSandbox) Unpause() (err error) {
 	sb.printf("Unpause()")
-	t := common.T0("Unpause()")
+	t := T0("Unpause()")
 	defer t.T1()
 	sb.Mutex.Lock()
 	defer sb.Mutex.Unlock()
@@ -182,7 +180,7 @@ func (sb *safeSandbox) Client() (*http.Client) {
 // fork (as a private method) doesn't cleanup parent sb if fork fails
 func (sb *safeSandbox) fork(dst Sandbox) (err error) {
 	sb.printf("fork(SB %v)", dst.ID())
-	t := common.T0("fork()")
+	t := T0("fork()")
 	defer t.T1()
 	sb.Mutex.Lock()
 	defer sb.Mutex.Unlock()
@@ -201,7 +199,7 @@ func (sb *safeSandbox) fork(dst Sandbox) (err error) {
 
 func (sb *safeSandbox) childExit(child Sandbox) {
 	sb.printf("childExit(SB %v)", child.ID())
-	t := common.T0("childExit()")
+	t := T0("childExit()")
 	defer t.T1()
 	sb.Mutex.Lock()
 	defer sb.Mutex.Unlock()

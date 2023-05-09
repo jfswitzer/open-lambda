@@ -1,12 +1,10 @@
-package sandbox
+package common
 
 import (
 	"container/list"
 	"fmt"
 	"log"
 	"strings"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 // we would like 20% of the pool to be free for new containers.  the
@@ -111,7 +109,7 @@ func (evictor *SOCKEvictor) nextEvent(block bool) *SandboxEvent {
 }
 
 func (evictor *SOCKEvictor) printf(format string, args ...any) {
-	if common.Conf.Trace.Evictor {
+	if Conf.Trace.Evictor {
 		msg := fmt.Sprintf(format, args...)
 		log.Printf("%s [EVICTOR]", strings.TrimRight(msg, "\n"))
 	}
@@ -184,7 +182,7 @@ func (evictor *SOCKEvictor) evictFront(queue *list.List, force bool) {
 	// destroy async (we'll know when it's done, because
 	// we'll see a evDestroy event later on our chan)
 	go func() {
-		t := common.T0("evict")
+		t := T0("evict")
 		if force {
 			sb.Destroy("forced eviction")
 		} else {
@@ -196,7 +194,7 @@ func (evictor *SOCKEvictor) evictFront(queue *list.List, force bool) {
 
 // POLICY: how should we select a victim?
 func (evictor *SOCKEvictor) doEvictions() {
-	memLimitMB := common.Conf.Limits.Mem_mb
+	memLimitMB := Conf.Limits.Mem_mb
 
 	// how many sandboxes could we spin up, given available mem?
 	freeSandboxes := evictor.mem.getAvailableMB() / memLimitMB

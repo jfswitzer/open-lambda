@@ -1,4 +1,4 @@
-package lambda
+package common
 
 import (
 	"errors"
@@ -13,8 +13,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 var notFound404 = errors.New("file does not exist")

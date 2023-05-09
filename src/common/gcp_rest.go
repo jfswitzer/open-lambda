@@ -1,4 +1,4 @@
-package boss
+package common
 
 type GcpLaunchVmArgs struct {
 	ServiceAccountEmail string

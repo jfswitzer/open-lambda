@@ -7,7 +7,7 @@ code, initializing containers, etcontainer.
 
 */
 
-package sandbox
+package common
 
 import (
 	"bytes"
@@ -21,7 +21,6 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 // DockerContainer is a sandbox inside a docker container.
@@ -33,7 +32,7 @@ type DockerContainer struct {
 	client	*docker.Client
 	installed map[string]bool
 	meta	  *SandboxMeta
-	rtType   common.RuntimeType
+	rtType   RuntimeType
 	httpClient *http.Client
 }
 
@@ -254,7 +253,7 @@ func (container *DockerContainer) ID() string {
 }
 
 // GetRuntimeType returns what runtime is being used by this container?
-func (container *DockerContainer) GetRuntimeType() common.RuntimeType {
+func (container *DockerContainer) GetRuntimeType() RuntimeType {
 	return container.rtType
 }
 
@@ -269,7 +268,7 @@ func (container *DockerContainer) HostDir() string {
 }
 
 func (container *DockerContainer) runServer() error {
-	if container.rtType != common.RT_PYTHON {
+	if container.rtType != RT_PYTHON {
 		return fmt.Errorf("Unsupported runtime")
 	}
 

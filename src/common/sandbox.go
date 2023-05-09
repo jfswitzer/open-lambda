@@ -1,16 +1,14 @@
-package sandbox
+package common
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 func SandboxPoolFromConfig(name string, sizeMb int) (cf SandboxPool, err error) {
-	if common.Conf.Sandbox == "docker" {
+	if Conf.Sandbox == "docker" {
 		return NewDockerPool("", nil)
-	} else if common.Conf.Sandbox == "sock" {
+	} else if Conf.Sandbox == "sock" {
 		mem := NewMemPool(name, sizeMb)
 		pool, err := NewSOCKPool(name, mem)
 		if err != nil {
@@ -20,7 +18,7 @@ func SandboxPoolFromConfig(name string, sizeMb int) (cf SandboxPool, err error) 
 		return pool, nil
 	}
 
-	return nil, fmt.Errorf("invalid sandbox type: '%s'", common.Conf.Sandbox)
+	return nil, fmt.Errorf("invalid sandbox type: '%s'", Conf.Sandbox)
 }
 
 func fillMetaDefaults(meta *SandboxMeta) *SandboxMeta {
@@ -28,10 +26,10 @@ func fillMetaDefaults(meta *SandboxMeta) *SandboxMeta {
 		meta = &SandboxMeta{}
 	}
 	if meta.MemLimitMB == 0 {
-		meta.MemLimitMB = common.Conf.Limits.Mem_mb
+		meta.MemLimitMB = Conf.Limits.Mem_mb
 	}
 	if meta.CPUPercent == 0 {
-		meta.CPUPercent = common.Conf.Limits.CPU_percent
+		meta.CPUPercent = Conf.Limits.CPU_percent
 	}
 	return meta
 }

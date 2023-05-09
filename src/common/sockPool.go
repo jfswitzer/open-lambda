@@ -1,4 +1,4 @@
-package sandbox
+package common
 
 import (
 	"fmt"
@@ -10,8 +10,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 // the first program is executed on the host, which sets up the
@@ -24,7 +22,7 @@ var nextId int64 = 0
 // SOCKPool is a ContainerFactory that creats docker containeres.
 type SOCKPool struct {
 	name          string
-	rootDirs      *common.DirMaker
+	rootDirs      *DirMaker
 	cgPool        *CgroupPool
 	mem           *MemPool
 	eventHandlers []SandboxEventFunc
@@ -38,7 +36,7 @@ func NewSOCKPool(name string, mem *MemPool) (cf *SOCKPool, err error) {
 		return nil, err
 	}
 
-	rootDirs, err := common.NewDirMaker("root-"+name, common.Conf.Storage.Root.Mode())
+	rootDirs, err := NewDirMaker("root-"+name, Conf.Storage.Root.Mode())
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +61,7 @@ func sbStr(sb Sandbox) string {
 	return fmt.Sprintf("<SB %s>", sb.ID())
 }
 
-func (pool *SOCKPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir string, meta *SandboxMeta, rtType common.RuntimeType) (sb Sandbox, err error) {
+func (pool *SOCKPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir string, meta *SandboxMeta, rtType RuntimeType) (sb Sandbox, err error) {
 	id := fmt.Sprintf("%d", atomic.AddInt64(&nextId, 1))
 	meta = fillMetaDefaults(meta)
 	pool.printf("<%v>.Create(%v, %v, %v, %v, %v)=%s...", pool.name, sbStr(parent), isLeaf, codeDir, scratchDir, meta, id)
@@ -71,7 +69,7 @@ func (pool *SOCKPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir st
 		pool.printf("...returns %v, %v", sbStr(sb), err)
 	}()
 
-	t := common.T0("Create()")
+	t := T0("Create()")
 	defer t.T1()
 
 	var cSock *SOCKContainer = &SOCKContainer{
@@ -121,7 +119,7 @@ func (pool *SOCKPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir st
 	}
 	t2.T1()
 
-	if rtType == common.RT_PYTHON {
+	if rtType == RT_PYTHON {
 		// add installed packages to the path, and import the modules we'll need
 		var pyCode []string
 
@@ -147,7 +145,7 @@ func (pool *SOCKPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir st
 		if err := ioutil.WriteFile(path, code, 0600); err != nil {
 			return nil, err
 		}
-	} else if rtType == common.RT_NATIVE {
+	} else if rtType == RT_NATIVE {
 		// nothing to do?
 	} else {
 		return nil, fmt.Errorf("Unsupported runtime")
@@ -186,7 +184,7 @@ func (pool *SOCKPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir st
 
 	cSock.client = &http.Client{
 		Transport: &http.Transport{Dial: dial},
-		Timeout: time.Second * time.Duration(common.Conf.Limits.Max_runtime_default),
+		Timeout: time.Second * time.Duration(Conf.Limits.Max_runtime_default),
 	}
 
 	// event handling

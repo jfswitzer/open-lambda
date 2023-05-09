@@ -1,4 +1,4 @@
-package lambda
+package common
 
 import (
 	"bytes"
@@ -12,12 +12,9 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/sandbox"
 )
 
-// we invoke this lambda to do the pip install in a Sandbox.
+// we invoke this lambda to do the pip install in a 
 //
 // the install is not recursive (it does not install deps), but it
 // does parse and return a list of deps, based on a rough
@@ -106,7 +103,7 @@ def f(event):
  * The manager installs to the worker host from an optional pip mirror.
  */
 type PackagePuller struct {
-	sbPool    sandbox.SandboxPool
+	sbPool    SandboxPool
 	depTracer *DepTracer
 
 	// directory of lambda code that installs pip packages
@@ -128,14 +125,14 @@ type PackageMeta struct {
 	TopLevel []string `json:"TopLevel"`
 }
 
-func NewPackagePuller(sbPool sandbox.SandboxPool, depTracer *DepTracer) (*PackagePuller, error) {
+func NewPackagePuller(sbPool SandboxPool, depTracer *DepTracer) (*PackagePuller, error) {
 	// create a lambda function for installing pip packages.  We do
 	// each install in a Sandbox for two reasons:
 	//
 	// 1. packages may be malicious
 	// 2. we want to install the right version, matching the Python
 	//    in the Sandbox
-	pipLambda := filepath.Join(common.Conf.Worker_dir, "admin-lambdas", "pip-install")
+	pipLambda := filepath.Join(Conf.Worker_dir, "admin-lambdas", "pip-install")
 	if err := os.MkdirAll(pipLambda, 0700); err != nil {
 		return nil, err
 	}
@@ -177,7 +174,7 @@ func (pp *PackagePuller) InstallRecursive(installs []string) ([]string, error) {
 	// deps, leading to other installs
 	for i := 0; i < len(installs); i++ {
 		pkg := installs[i]
-		if common.Conf.Trace.Package {
+		if Conf.Trace.Package {
 			log.Printf("On %v of %v", pkg, installs)
 		}
 		p, err := pp.GetPkg(pkg)
@@ -185,7 +182,7 @@ func (pp *PackagePuller) InstallRecursive(installs []string) ([]string, error) {
 			return nil, err
 		}
 
-		if common.Conf.Trace.Package {
+		if Conf.Trace.Package {
 			log.Printf("Package '%s' has deps %v", pkg, p.meta.Deps)
 			log.Printf("Package '%s' has top-level modules %v", pkg, p.meta.TopLevel)
 		}
@@ -239,13 +236,13 @@ func (pp *PackagePuller) GetPkg(pkg string) (*Package, error) {
 // the host.  We want the package on the host to share with all, but
 // want to run the install in the Sandbox because we don't trust it.
 func (pp *PackagePuller) sandboxInstall(p *Package) (err error) {
-	t := common.T0("pull-package")
+	t := T0("pull-package")
 	defer t.T1()
 
 	// the pip-install lambda installs to /host, which is the the
 	// same as scratchDir, which is the same as a sub-directory
 	// named after the package in the packages dir
-	scratchDir := filepath.Join(common.Conf.Pkgs_dir, p.name)
+	scratchDir := filepath.Join(Conf.Pkgs_dir, p.name)
 	log.Printf("do pip install, using scratchDir='%v'", scratchDir)
 
 	alreadyInstalled := false
@@ -266,10 +263,10 @@ func (pp *PackagePuller) sandboxInstall(p *Package) (err error) {
 		}
 	}()
 
-	meta := &sandbox.SandboxMeta{
-		MemLimitMB: common.Conf.Limits.Installer_mem_mb,
+	meta := &SandboxMeta{
+		MemLimitMB: Conf.Limits.Installer_mem_mb,
 	}
-	sb, err := pp.sbPool.Create(nil, true, pp.pipLambda, scratchDir, meta, common.RT_PYTHON)
+	sb, err := pp.sbPool.Create(nil, true, pp.pipLambda, scratchDir, meta, RT_PYTHON)
 	if err != nil {
 		return err
 	}

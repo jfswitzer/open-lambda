@@ -1,4 +1,4 @@
-package sandbox
+package common
 
 import (
 	"fmt"
@@ -11,9 +11,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/sandbox/dockerutil"
+	"github.com/open-lambda/open-lambda/ol/common/dockerutil"
 )
 
 // DockerPool is a ContainerFactory that creates docker containers.
@@ -40,7 +38,7 @@ func NewDockerPool(pidMode string, caps []string) (*DockerPool, error) {
 	idxPtr := &sharedIdx
 
 	labels := map[string]string{
-		dockerutil.DOCKER_LABEL_CLUSTER: common.Conf.Worker_dir,
+		dockerutil.DOCKER_LABEL_CLUSTER: Conf.Worker_dir,
 	}
 
 	pool := &DockerPool{
@@ -48,9 +46,9 @@ func NewDockerPool(pidMode string, caps []string) (*DockerPool, error) {
 		labels:         labels,
 		caps:           caps,
 		pidMode:        pidMode,
-		pkgsDir:        common.Conf.Pkgs_dir,
+		pkgsDir:        Conf.Pkgs_dir,
 		idxPtr:         idxPtr,
-		dockerRuntime: common.Conf.Docker_runtime,
+		dockerRuntime: Conf.Docker_runtime,
 		eventHandlers:  []SandboxEventFunc{},
 	}
 
@@ -60,9 +58,9 @@ func NewDockerPool(pidMode string, caps []string) (*DockerPool, error) {
 }
 
 // Create creates a docker sandbox from the handler and sandbox directory.
-func (pool *DockerPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir string, meta *SandboxMeta, _rtType common.RuntimeType) (sb Sandbox, err error) {
+func (pool *DockerPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir string, meta *SandboxMeta, _rtType RuntimeType) (sb Sandbox, err error) {
 	meta = fillMetaDefaults(meta)
-	t := common.T0("Create()")
+	t := T0("Create()")
 	defer t.T1()
 
 	if parent != nil {
@@ -150,7 +148,7 @@ func (pool *DockerPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir 
 
 	c.httpClient = &http.Client{
 		Transport: &http.Transport{Dial: dial},
-		Timeout: time.Second * time.Duration(common.Conf.Limits.Max_runtime_default),
+		Timeout: time.Second * time.Duration(Conf.Limits.Max_runtime_default),
 	}
 
 	// wrap to make thread-safe and handle container death

@@ -1,4 +1,4 @@
-package bench
+package common
 
 import (
 	"fmt"
@@ -8,10 +8,7 @@ import (
 	"bytes"
 	"time"
 	"math/rand"
-	
 	"github.com/urfave/cli"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 type Call struct {
@@ -26,7 +23,7 @@ func task(task int, reqQ chan Call, errQ chan error) {
                         break
                 }
 
-                url := fmt.Sprintf("http://localhost:%s/run/%s", common.Conf.Worker_port, call.name)
+                url := fmt.Sprintf("http://localhost:%s/run/%s", Conf.Worker_port, call.name)
                 resp, err := http.Post(url, "text/json", bytes.NewBuffer([]byte("null")))
                 if err != nil {
                         errQ <- fmt.Errorf("failed req to %s: %v", url, err)
@@ -52,12 +49,12 @@ func task(task int, reqQ chan Call, errQ chan error) {
 
 func run_benchmark(ctx *cli.Context, name string, tasks int, functions int, func_template string) error {
 	// config
-	olPath, err := common.GetOlPath(ctx)
+	olPath, err := GetOlPath(ctx)
 	if err != nil {
 		return err
 	}
 	configPath := filepath.Join(olPath, "config.json")
-	if err := common.LoadConf(configPath); err != nil {
+	if err := LoadConf(configPath); err != nil {
 		return err
 	}
 
@@ -131,20 +128,20 @@ func run_benchmark(ctx *cli.Context, name string, tasks int, functions int, func
 }
 
 func create_lambdas(ctx *cli.Context) error {	
-	olPath, err := common.GetOlPath(ctx)
+	olPath, err := GetOlPath(ctx)
 	if err != nil {
 		return err
 	}
 
 	configPath := filepath.Join(olPath, "config.json")
 
-	if err := common.LoadConf(configPath); err != nil {
+	if err := LoadConf(configPath); err != nil {
 		return err
 	}
 
 	for i := 0; i < 64*1024; i++ {
 		// noop
-		path := filepath.Join(common.Conf.Registry, fmt.Sprintf("bench-py-%d.py", i))
+		path := filepath.Join(Conf.Registry, fmt.Sprintf("bench-py-%d.py", i))
 		code := fmt.Sprintf("def f(event):\n\treturn %d", i)
 
 		fmt.Printf("%s\n", path)
@@ -153,7 +150,7 @@ func create_lambdas(ctx *cli.Context) error {
 		}
 
 		// simple pandas operation (correlation between two columns in 1000x10 DataFrame)
-		path = filepath.Join(common.Conf.Registry, fmt.Sprintf("bench-pd-%d.py", i))
+		path = filepath.Join(Conf.Registry, fmt.Sprintf("bench-pd-%d.py", i))
 		code = `# ol-install: numpy,pandas
 import numpy as np
 import pandas as pd

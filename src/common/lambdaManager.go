@@ -1,4 +1,4 @@
-package lambda
+package common
 
 import (
 	"container/list"
@@ -7,24 +7,21 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/sandbox"
 )
 
 // LambdaMgr provides thread-safe getting of lambda functions and collects all
 // lambda subsystems (resource pullers and sandbox pools) in one place
 type LambdaMgr struct {
 	// subsystems (these are thread safe)
-	sbPool sandbox.SandboxPool
+	sbPool SandboxPool
 	*DepTracer
 	*PackagePuller // depends on sbPool and DepTracer
 	*ImportCache   // depends PackagePuller
 	*HandlerPuller // depends on sbPool and ImportCache[optional]
 
 	// storage dirs that we manage
-	codeDirs    *common.DirMaker
-	scratchDirs *common.DirMaker
+	codeDirs    *DirMaker
+	scratchDirs *DirMaker
 
 	// thread-safe map from a lambda's name to its LambdaFunc
 	mapMutex sync.Mutex
@@ -55,23 +52,23 @@ func NewLambdaMgr() (res *LambdaMgr, err error) {
 		}
 	}()
 
-	mgr.codeDirs, err = common.NewDirMaker("code", common.Conf.Storage.Code.Mode())
+	mgr.codeDirs, err = NewDirMaker("code", Conf.Storage.Code.Mode())
 	if err != nil {
 		return nil, err
 	}
-	mgr.scratchDirs, err = common.NewDirMaker("scratch", common.Conf.Storage.Scratch.Mode())
+	mgr.scratchDirs, err = NewDirMaker("scratch", Conf.Storage.Scratch.Mode())
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("Creating SandboxPool")
-	mgr.sbPool, err = sandbox.SandboxPoolFromConfig("sandboxes", common.Conf.Mem_pool_mb)
+	mgr.sbPool, err = SandboxPoolFromConfig("sandboxes", Conf.Mem_pool_mb)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("Creating DepTracer")
-	mgr.DepTracer, err = NewDepTracer(filepath.Join(common.Conf.Worker_dir, "dep-trace.json"))
+	mgr.DepTracer, err = NewDepTracer(filepath.Join(Conf.Worker_dir, "dep-trace.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +79,7 @@ func NewLambdaMgr() (res *LambdaMgr, err error) {
 		return nil, err
 	}
 
-	if common.Conf.Features.Import_cache {
+	if Conf.Features.Import_cache {
 		log.Printf("Creating ImportCache")
 		mgr.ImportCache, err = NewImportCache(mgr.codeDirs, mgr.scratchDirs, mgr.sbPool, mgr.PackagePuller)
 		if err != nil {
@@ -129,7 +126,7 @@ func (mgr *LambdaMgr) Debug() string {
 }
 
 func (mgr *LambdaMgr) DumpStatsToLog() {
-	snapshot := common.SnapshotStats()
+	snapshot := SnapshotStats()
 
 	sec := func(name string) (float64) {
 		return float64(snapshot[name+".cnt"] * snapshot[name+".ms-avg"]) / 1000

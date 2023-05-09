@@ -1,4 +1,4 @@
-package lambda
+package common
 
 import (
 	"encoding/json"

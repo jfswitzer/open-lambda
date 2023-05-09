@@ -1,4 +1,4 @@
-package sandbox
+package common
 
 import (
 	"fmt"
@@ -13,8 +13,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 type SOCKContainer struct {
@@ -25,7 +23,7 @@ type SOCKContainer struct {
 	codeDir          string
 	scratchDir       string
 	cg               *Cgroup
-	rtType           common.RuntimeType
+	rtType           RuntimeType
 	client *http.Client
 
 	// 1 for self, plus 1 for each child (we can't release memory
@@ -52,7 +50,7 @@ func (container *SOCKContainer) ID() string {
 	return container.id
 }
 
-func (container *SOCKContainer) GetRuntimeType() common.RuntimeType {
+func (container *SOCKContainer) GetRuntimeType() RuntimeType {
 	return container.rtType
 }
 
@@ -69,12 +67,12 @@ func (container *SOCKContainer) freshProc() (err error) {
 
 	var cmd *exec.Cmd
 
-	if container.rtType == common.RT_PYTHON {
+	if container.rtType == RT_PYTHON {
 		cmd = exec.Command(
 			"chroot", container.containerRootDir, "python3", "-u",
 			"/runtimes/python/server.py", "/host/bootstrap.py", strconv.Itoa(1),
 		)
-	} else if container.rtType == common.RT_NATIVE {
+	} else if container.rtType == RT_NATIVE {
 		if container.containerProxy == nil {
 			err := container.launchContainerProxy()
 
@@ -175,16 +173,16 @@ func (container *SOCKContainer) launchContainerProxy() (err error) {
 
 func (container *SOCKContainer) populateRoot() (err error) {
 	// FILE SYSTEM STEP 1: mount base
-	baseDir := common.Conf.SOCK_base_path
-	if err := syscall.Mount(baseDir, container.containerRootDir, "", common.BIND, ""); err != nil {
+	baseDir := Conf.SOCK_base_path
+	if err := syscall.Mount(baseDir, container.containerRootDir, "", BIND, ""); err != nil {
 		return fmt.Errorf("failed to bind root dir: %s -> %s :: %v", baseDir, container.containerRootDir, err)
 	}
 
-	if err := syscall.Mount("none", container.containerRootDir, "", common.BIND_RO, ""); err != nil {
+	if err := syscall.Mount("none", container.containerRootDir, "", BIND_RO, ""); err != nil {
 		return fmt.Errorf("failed to bind root dir RO: %s :: %v", container.containerRootDir, err)
 	}
 
-	if err := syscall.Mount("none", container.containerRootDir, "", common.PRIVATE, ""); err != nil {
+	if err := syscall.Mount("none", container.containerRootDir, "", PRIVATE, ""); err != nil {
 		return fmt.Errorf("failed to make root dir private :: %v", err)
 	}
 
@@ -192,11 +190,11 @@ func (container *SOCKContainer) populateRoot() (err error) {
 	if container.codeDir != "" {
 		sbCodeDir := filepath.Join(container.containerRootDir, "handler")
 
-		if err := syscall.Mount(container.codeDir, sbCodeDir, "", common.BIND, ""); err != nil {
+		if err := syscall.Mount(container.codeDir, sbCodeDir, "", BIND, ""); err != nil {
 			return fmt.Errorf("Failed to bind code dir: %s -> %s :: %v", container.codeDir, sbCodeDir, err.Error())
 		}
 
-		if err := syscall.Mount("none", sbCodeDir, "", common.BIND_RO, ""); err != nil {
+		if err := syscall.Mount("none", sbCodeDir, "", BIND_RO, ""); err != nil {
 			return fmt.Errorf("failed to bind code dir RO: %v", err.Error())
 		}
 	}
@@ -208,13 +206,13 @@ func (container *SOCKContainer) populateRoot() (err error) {
 	}
 
 	sbScratchDir := filepath.Join(container.containerRootDir, "host")
-	if err := syscall.Mount(container.scratchDir, sbScratchDir, "", common.BIND, ""); err != nil {
+	if err := syscall.Mount(container.scratchDir, sbScratchDir, "", BIND, ""); err != nil {
 		return fmt.Errorf("failed to bind scratch dir: %v", err.Error())
 	}
 
 	// TODO: cheaper to handle with symlink in lambda image?
 	sbTmpDir := filepath.Join(container.containerRootDir, "tmp")
-	if err := syscall.Mount(tmpDir, sbTmpDir, "", common.BIND, ""); err != nil {
+	if err := syscall.Mount(tmpDir, sbTmpDir, "", BIND, ""); err != nil {
 		return fmt.Errorf("failed to bind tmp dir: %v", err.Error())
 	}
 
@@ -227,7 +225,7 @@ func (container *SOCKContainer) Pause() (err error) {
 		return err
 	}
 
-	if common.Conf.Features.Downsize_paused_mem {
+	if Conf.Features.Downsize_paused_mem {
 		// drop mem limit to what is used when we're paused, because
 		// we know the Sandbox cannot allocate more when it's not
 		// schedulable.  Then release saved memory back to the pool.
@@ -247,11 +245,11 @@ func (container *SOCKContainer) Pause() (err error) {
 
 // Unpause resumes/unfreezes the container
 func (container *SOCKContainer) Unpause() (err error) {
-	if common.Conf.Features.Downsize_paused_mem {
+	if Conf.Features.Downsize_paused_mem {
 		// block until we have enough mem to upsize limit to the
 		// normal size before unpausing
 		oldLimit := container.cg.getMemLimitMB()
-		newLimit := common.Conf.Limits.Mem_mb
+		newLimit := Conf.Limits.Mem_mb
 		container.pool.mem.adjustAvailableMB(oldLimit - newLimit)
 		container.cg.setMemLimitMB(newLimit)
 	}
@@ -292,7 +290,7 @@ func (container *SOCKContainer) decCgRefCount() {
 			container.containerProxy.Wait()
 		}
 
-		t := common.T0("Destroy()/cleanup-cgroup")
+		t := T0("Destroy()/cleanup-cgroup")
 		if container.cg != nil {
 			container.cg.KillAllProcs()
 			container.printf("killed PIDs in CG\n")
@@ -302,13 +300,13 @@ func (container *SOCKContainer) decCgRefCount() {
 		t.T1()
 
 		container.printf("unmount and remove dirs\n")
-		t = common.T0("Destroy()/detach-root")
+		t = T0("Destroy()/detach-root")
 		if err := syscall.Unmount(container.containerRootDir, syscall.MNT_DETACH); err != nil {
 			container.printf("unmount root dir %s failed :: %v\n", container.containerRootDir, err)
 		}
 		t.T1()
 
-		t = common.T0("Destroy()/remove-root")
+		t = T0("Destroy()/remove-root")
 		if err := os.RemoveAll(container.containerRootDir); err != nil {
 			container.printf("remove root dir %s failed :: %v\n", container.containerRootDir, err)
 		}
@@ -360,7 +358,7 @@ func (container *SOCKContainer) fork(dst Sandbox) (err error) {
 	}
 	defer cgProcs.Close()
 
-	t := common.T0("forkRequest")
+	t := T0("forkRequest")
 	err = container.forkRequest(fmt.Sprintf("%s/ol.sock", container.scratchDir), root, cgProcs)
 	if err != nil {
 		return err
@@ -373,7 +371,7 @@ func (container *SOCKContainer) fork(dst Sandbox) (err error) {
 	// spawned (TODO: better way to do this?  This lets a forking
 	// process potentially kill our cache entry, which isn't
 	// great).
-	t = common.T0("move-to-cg-after-fork")
+	t = T0("move-to-cg-after-fork")
 	for {
 		currPids, err := container.cg.GetPIDs()
 		if err != nil {

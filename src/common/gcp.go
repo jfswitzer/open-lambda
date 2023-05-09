@@ -1,4 +1,4 @@
-package boss
+package common
 
 import (
 	"bytes"

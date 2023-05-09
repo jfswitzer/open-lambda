@@ -1,4 +1,4 @@
-package sandbox
+package common
 
 import (
 	"bufio"
@@ -11,8 +11,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/open-lambda/open-lambda/ol/common"
 )
 
 // if there are fewer than CGROUP_RESERVE available, more will be created.
@@ -35,7 +33,7 @@ type CgroupPool struct {
 
 func NewCgroupPool(name string) (*CgroupPool, error) {
 	pool := &CgroupPool{
-		Name:     path.Base(path.Dir(common.Conf.Worker_dir)) + "-" + name,
+		Name:     path.Base(path.Dir(Conf.Worker_dir)) + "-" + name,
 		ready:    make(chan *Cgroup, CGROUP_RESERVE),
 		recycled: make(chan *Cgroup, CGROUP_RESERVE),
 		quit:     make(chan chan bool),
@@ -78,7 +76,7 @@ func (pool *CgroupPool) NewCgroup() *Cgroup {
 }
 
 func (cg *Cgroup) printf(format string, args ...any) {
-	if common.Conf.Trace.Cgroups {
+	if Conf.Trace.Cgroups {
 		msg := fmt.Sprintf(format, args...)
 		log.Printf("%s [CGROUP %s: %s]", strings.TrimRight(msg, "\n"), cg.pool.Name, cg.Name)
 	}
@@ -87,7 +85,7 @@ func (cg *Cgroup) printf(format string, args ...any) {
 func (cg *Cgroup) Release() {
 	// if there's room in the recycled channel, add it there.
 	// Otherwise, just delete it.
-	if common.Conf.Features.Reuse_cgroups {
+	if Conf.Features.Reuse_cgroups {
 		for i := 100; i >= 0; i-- {
 			pids, err := cg.GetPIDs()
 			if err != nil {
@@ -168,10 +166,10 @@ Loop:
 			// cg.WriteInt("memory.failcnt", 0)
 			cg.Unpause()
 		default:
-			t := common.T0("fresh-cgroup")
+			t := T0("fresh-cgroup")
 			cg = pool.NewCgroup()
-			cg.WriteInt("pids.max", int64(common.Conf.Limits.Procs))
-			cg.WriteInt("memory.swap.max", int64(common.Conf.Limits.Swappiness))
+			cg.WriteInt("pids.max", int64(Conf.Limits.Procs))
+			cg.WriteInt("memory.swap.max", int64(Conf.Limits.Swappiness))
 			t.T1()
 		}
 

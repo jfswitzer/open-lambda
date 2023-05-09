@@ -1,19 +1,16 @@
-package server
+package common
 
 import (
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
-
-	"github.com/open-lambda/open-lambda/ol/common"
-	"github.com/open-lambda/open-lambda/ol/lambda"
 )
 
 // LambdaServer is a worker server that listens to run lambda requests and forward
 // these requests to its sandboxes.
 type LambdaServer struct {
-	lambdaMgr *lambda.LambdaMgr
+	lambdaMgr *LambdaMgr
 }
 
 // getURLComponents parses request URL into its "/" delimated components
@@ -40,7 +37,7 @@ func getURLComponents(r *http.Request) []string {
 // curl -X POST localhost:8080/run/<lambda-name> -d '{}'
 // ...
 func (s *LambdaServer) RunLambda(w http.ResponseWriter, r *http.Request) {
-	t := common.T0("web-request")
+	t := T0("web-request")
 	defer t.T1()
 
 	log.Printf("Received request to %s\n", r.URL.Path)
@@ -78,7 +75,7 @@ func (s *LambdaServer) cleanup() {
 func NewLambdaServer() (*LambdaServer, error) {
 	log.Printf("Starting new lambda server")
 
-	lambdaMgr, err := lambda.NewLambdaMgr()
+	lambdaMgr, err := NewLambdaMgr()
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +85,7 @@ func NewLambdaServer() (*LambdaServer, error) {
 	}
 
 	log.Printf("Setups Handlers")
-	port := fmt.Sprintf(":%s", common.Conf.Worker_port)
+	port := fmt.Sprintf(":%s", Conf.Worker_port)
 	http.HandleFunc(RUN_PATH, server.RunLambda)
 	http.HandleFunc(DEBUG_PATH, server.Debug)
 
